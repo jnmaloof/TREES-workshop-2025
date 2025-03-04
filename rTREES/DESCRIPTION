@@ -1,0 +1,33 @@
+Package: rTREES
+Type: Package
+Title: R Terrestrial Regional Ecosystem Exchange Simulator
+Version: 2025.03.02
+Author: See the 'key papers' for comprehensive list of authors and contributors.
+Maintainer: Mitchell C Hitchcock <mchitchc@buffalo.edu>
+Description: A process-based model for plant, hydraulic, soil, microbial, and other biophysical and ecological mechanisms. This version is a reimplementation of version ~3.2.3 form cpp into R. As such results should be near 1:1, but input and output formatting will vary. Any minor differences are likely attributed to bug fixes that will be back ported to the cpp standalone version.
+    **Previous base->R versions**
+    ~3.1.5->2024.06.12
+    **Key papers**
+    Mackay, D.S., D.E. Ahl, B.E. Ewers, S. Samanta, S.T. Gower, and S.N. Burrows. 2003. Physiological tradeoffs in the parameterization of a model of canopy transpiration. Advances in Water Resources, 26(2), 179-194. doi.org/10.1016/S0309-1708(02)00090-8
+    Samanta, S., D.S. Mackay, M. Clayton, E.L. Kruger, and B.E. Ewers. 2007. Bayesian analysis for uncertainty estimation of a canopy transpiration model. Water Resources Research, 43, W04424, doi 10.1029/2006WR005028. doi.org/10.1029/2006WR005028
+    Loranty, M.M., D.S. Mackay, B.E. Ewers, E. Traver, and E.L. Kruger, 2010. Competition for light between individual trees lowers reference canopy stomatal conductance. results from a model. Journal of Geophysical Research - Biogeosciences, 115, G04019, doi 10.1029/2010JG001377. doi.org/10.1029/2010JG001377
+    McDowell, N.G., R.A. Fisher, C. Xu, J.C. Domec, T. Holtta, D.S. Mackay, J.S. Sperry, A. Boutz, L. Dickman, N. Gehres, J.M. Limousin, A. Macalady, J. Martinez-Vilalta, M. Mencuccini, J.A. Plaut, J. Ogee, R.E. Pangle, D.P. Rasse, M.G. Ryan, S. Sevanto, R.H. Waring, A.P. Williams, E.A. Yepez, and W.T. Pockman. 2013. Tansley Review Evaluating theories of drought-induced vegetation mortality using a multi-model-experiment framework. New Phytologist, 200, 304-321. doi.org/10.1111/nph.12465
+    Mackay, D.S., D.E. Roberts, B.E. Ewers, J.S. Sperry, N.G. McDowell, and W.T. Pockman. 2015. Interdependence of chronic hydraulic dysfunction and canopy processes can improve integrated models of tree response to drought. Water Resources Research, 51(8), 6156-6176, doi 10.1002/2015WR017244.
+    Tai, X., D.S. Mackay, J.S. Sperry, P. Brooks, W.R.L. Anderegg, L.B. Flanagan, S.B. Rood, and C. Hopkinson. 2018. Distributed plant hydraulic and hydrological modeling to understand the susceptibility of riparian woodland trees to drought-induced mortality. Water Resources Research, 54(7), 4901-4915, doi 10.1029/2018WR022801. doi.org/10.1029/2018WR022801
+    Wang, D.R., C.R. Guadagno, X. Mao, D.S. Mackay, J.R. Pleban, R.L. Baker, C. Weinig, J.-L. Jannink, and B.E. Ewers. 2019. A framework for genomics-informed ecophysiological modeling in plants. Journal of Experimental Botany, 70(9), 2561-2574, doi 10.1093/jxb/erz090. doi.org/10.1093/jxb/erz090
+    Mackay, D.S., P.R. Savoy, C. Grossiord, X. Tai, J.R. Pleban, D.R. Wang, N.G. McDowell, H.D. Adams, and J.S. Sperry. 2020. Conifers depend on established roots during drought results from a coupled model of carbon allocation and hydraulics. New Phytologist, 225(2), 679-692, doi 10.1111/nph.16043. doi.org/10.1111/nph.16043
+    **Other contributors**
+    Dohyoung Kim
+License: AGPLv3
+Encoding: UTF-8
+Imports: Rcpp (>= 1.0.12), data.table (>= 1.15.4), dplyr (>= 1.1.4),
+        tidyr (>= 1.3.1), callr (>= 3.7.6), progressr (>= 0.14.0),
+        ggplot2 (>= 3.5.1), readr (>= 2.1.5), magrittr (>= 2.0.3),
+        tibble (>= 3.2.1)
+LinkingTo: Rcpp
+RoxygenNote: 7.3.2
+Depends: R (>= 4.4.1)
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+NeedsCompilation: yes
+Packaged: 2025-03-04 17:05:06 UTC; seedfire

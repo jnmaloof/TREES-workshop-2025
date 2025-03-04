@@ -1,0 +1,393 @@
+---
+title: "rTREES"
+author: "Mitchell C. Hitchcock"
+date: "`r Sys.Date()`"
+output: github_document
+---
+This page tests and demonstrates the rTREES package for running the Terrestrial Regional Ecosystem Exchange Simulator in R. See the description file for sources and requirements.
+
+# Install the package
+If the rTREES .tar.gz file is in the same working directory as this file the following code will work as is. Otherwise, fill in the full path to the file.
+```{r install_pkg}
+# install.packages("rTREES_2025.03.02.tar.gz",repos = NULL, type = "source", dependencies = TRUE)
+# install.packages("~/fullpath/rTREES_2025.03.02.tar.gz",repos = NULL, type = "source", dependencies = TRUE)
+```
+
+```{r install_loading}
+library(rTREES)
+library(tidyverse)
+library(ggthemes)
+options(scipen=5,rstudio.notebook.executing=TRUE)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 20,
+  out.width = "90%",
+  eval.after = c("fig.height", "fig.width")
+)
+```
+
+```{r prep,include=FALSE}
+# scale_color_discrete<-scale_color_colorblind
+theme_set( 
+  theme_linedraw()#+
+  # theme(
+  #   text=element_text(family="DejaVu serif")
+  # )
+  )
+
+spkd_theme <- function(){
+  list(
+    theme_linedraw(), #+
+      # theme(text = element_text(family = "DejaVu serif")),
+    theme(axis.text.x = ggplot2::element_text(angle = 45, hjust=1)),
+    scale_color_colorblind(),
+    scale_fill_colorblind()
+  )
+}
+```
+
+# Setup
+
+## Load inputs from file
+
+```{r Load_TREES_files}
+demo_inputs_from_file<-Load_TREES_files(
+driver=system.file("examples","demo_driver.txt",package="rTREES"),
+parameters = system.file("examples","demo_parameter.p",package="rTREES"),
+root_shoot_soil = system.file("examples","demo_root_shoot_soil",package="rTREES")
+)
+```
+
+## Generate boilerplate inputs
+
+### Environemental driver
+
+```{r BuildDriver}
+demo_driver<-BuildDriver(
+  lat = 35.818,
+  long = -106.305,
+  alt = 2150.0,
+  ndays = 50,
+  year = 2023,
+  start_jday=1,
+  dewpoint = 12,
+  co2_atm=410.5,
+  wind_speed=1.01,
+  precipdays = c(1, 10, 20,30),
+  precip_amount = 16.25,
+  temp_scalar=1
+)
+knitr::kable(demo_driver[1:10,], format = "markdown")
+```
+
+### Main parameters
+
+```{r ExampleParameters}
+demo_parameters<-ExampleParameters()
+knitr::kable(demo_parameters, format = "markdown")
+```
+
+### Root, shoot, and soil layer parameters
+
+```{r ExampleRSS}
+demo_RSS<-ExampleRSS()
+lobstr::tree(demo_RSS)
+```
+
+## Validate and repair inputs
+
+### Environemental driver
+
+#### Good driver
+```{r Good_driver}
+ValidateDriver(demo_driver)
+```
+
+#### Bad driver 
+```{r Bad_driver}
+demo_bad_driver<-demo_driver
+#Add random NA values
+demo_bad_driver[matrix(
+  sample(
+    x = c(TRUE,FALSE),
+    size = nrow(demo_bad_driver)*ncol(demo_bad_driver),
+    prob = c(0.01,0.99),
+    replace = TRUE
+  ),
+  nrow = nrow(demo_bad_driver),
+  ncol = ncol(demo_bad_driver)
+)]<- NA
+ValidateDriver(Driver = demo_bad_driver)
+```
+
+```{r onetoone_bad}
+dbd<-demo_bad_driver %>% 
+  pivot_longer(everything(),values_to = "bad") %>% 
+  dplyr::mutate(bad=ifelse(is.na(bad),-10,bad))
+dod<-demo_driver %>% 
+  pivot_longer(everything(),values_to = "original") 
+compare_bad_dr<-dbd %>% 
+  dplyr::mutate(original=dod$original)
+
+ggplot(compare_bad_dr)+
+  geom_point(aes(x=original,y=bad))+
+  spkd_theme()+
+  facet_wrap(~name,scales="free",ncol=2)
+```
+
+
+####  Attempt driver repair
+```{r onetoone_repaired}
+demo_repaired_driver<-attempt_driver_repair(na_df = demo_bad_driver)
+drd<-demo_repaired_driver %>% 
+  pivot_longer(everything(),values_to = "repaired") 
+
+dod<-demo_driver %>% 
+  pivot_longer(everything(),values_to = "original") 
+
+compare_rep_dr<-drd %>% 
+  dplyr::mutate(original=dod$original)
+
+ggplot(compare_rep_dr)+
+  geom_point(aes(x=original,y=repaired))+
+  spkd_theme()+
+  facet_wrap(~name,scales="free")
+  
+```
+
+```{r vis_rep_dr}
+Visual_driver(demo_repaired_driver,TRUE)
+```
+
+
+### Main parameters
+
+#### Good parameters
+```{r Good_parameters}
+demo_p<-ExampleParameters()
+demo_good_p_valid<-ValidateParameters(demo_p)
+#Warnings just mean you should verify the parameter is what you want.
+#Errors mean something is actually wrong.
+```
+
+#### Bad parameters
+```{r Bad_parameters}
+demo_p_bad<-demo_p
+#Scramble the parameter order and delete a few entirely
+demo_p_bad<-demo_p_bad[sample(1:174,170,replace = FALSE),]
+
+#Check the damage. This validation will also attempt simple repairs automatically.
+#The name and notes from each line and figure out which parameter the associated value belongs to. This process is fairly conservative so as to avoid mistakes. This is at the cost of more manual repairs.
+demo_repaired_p<-ValidateParameters(demo_p_bad)
+#Parameters that failed to be repaired or matched are set to NA and must be manually corrected
+which(is.na(demo_repaired_p[,1]))
+#Here we can see that from the randomly ordered parameters, with 4 missing, only 18 need manual intervention.
+```
+
+### Root, shoot, and soil layer parameters
+```{r clean_rss}
+demo_rss_from_file<-CleanRootShootParams(
+  root_shoot_soil = system.file("examples","demo_root_shoot_soil",package="rTREES")
+  )
+
+#if reading from file ValidateRootShootSoil will run CleanRootShootParams to load it.
+ValidateRootShootSoil(
+  root_shoot_soil =demo_rss_from_file
+  # system.file("examples","demo_root_shoot_soil",package="rTREES")
+)
+
+```
+
+## Visualize driver
+
+```{r driver_ts}
+#View driver over time
+Visual_driver(demo_repaired_driver,dailys = FALSE)
+
+```
+
+```{r driver_dly}
+#View driver with each day overlaid one another
+Visual_driver(demo_repaired_driver,dailys = TRUE)
+```
+
+
+## Modify and store parameters
+
+### Environemental driver
+This would be done the same way you work with any data.frame. 
+
+### Main parameters
+The names of the parameters must be exact!
+If you are unsure there is a function for that.
+```{r find_p}
+param_search(query = "root shoot ratio")
+param_search("specific root length")
+```
+
+If you want to see what the example values and notes are you can try something like this.
+```{r see_exp}
+ExampleParameters()[param_idx("SRL1"),]
+```
+
+```{r single_chg_p}
+demo_p_chg<-ChangeParameter(
+  base_parameters = demo_inputs_from_file$parameters,
+  NewValues = data.frame(
+    root_to_shoot=0.2,
+    SRL1=500
+  )
+)
+```
+
+### Root, shoot, and soil layer parameters
+Given the list structure of the RSS parameters, this is fairly simple to modify manually.
+
+### Saving inputs to file
+
+```{r write_inputs,eval=FALSE}
+Write_TREES_files(
+  destination=getwd(),#include whole path if outside working dir
+  prefix="demo",
+  driver=demo_inputs_from_file$driver,
+  parameter=demo_inputs_from_file$parameters,
+  rss=demo_inputs_from_file$root_shoot_soil
+)
+```
+
+# Running simulations
+
+## Single runs
+
+### Running
+This is the most basic run. Note that the inputs are not necessarily real parameters and only for demonstration purposes.
+```{r single_run}
+demo_standard_run<-rTREES(
+  env_driver = demo_inputs_from_file$driver,
+  base_parameters = demo_inputs_from_file$parameters,
+  root_shoot_soil = demo_inputs_from_file$root_shoot_soil
+  )
+```
+
+### Cleaning and visualizing
+
+```{r clean_srun}
+demo_standard_clean<-Clean_rTREES_output(demo_standard_run)
+
+demo_sim<-demo_standard_clean$sim %>% 
+  dplyr::mutate(datetime=ez_dt(year,jday,hour,min))
+```
+
+Replace LAI with whichever output you are interested in.
+```{r view_srun}
+ggplot(demo_sim)+
+  geom_point(aes(x=datetime,y=LAI))+
+  spkd_theme()
+```
+
+
+## Parallel runs
+
+### Prepare
+
+#### Parameters
+Follow the same rules as ChangeParameter(), but with as many rows as you want. Each row represents a different simulation.
+```{r make_p_sets}
+multi_p_set<-data.frame(
+    root_to_shoot=runif(5,0,2),
+    SRL1=runif(5,100,1000)
+  )
+```
+
+#### RSS
+Currently rTREES parallel runs only take one set of RSS inputs at a time. This may be implemented in the future if anyone expresses interest or, ideally, would like to try and implement this.
+
+#### Driver
+More than one driver may be provided in list format where the names will be used in the outputs.
+```{r make_multidriver}
+mult_driver_set<-list(
+  original_example=demo_inputs_from_file$driver,
+  repaired_driver=demo_repaired_driver
+)
+```
+
+Given the 5 sets of parameters and 2 drivers, this will run a total of 10 simulations.
+
+#### Other arguments
+Running many long simulations in parallel can quickly exhaust resources on the best of computer systems. To help mitigate this you can specify which outputs you are interested in and at which interval. Additionally, the interval can take the value at each interval or the average of that interval (based around the midpoint of the interval). 
+
+##### Choosing outputs
+```{r see_out_opts}
+Possible_Outputs(
+  n_layers = demo_RSS$rmodules #because some outputs are per layer.
+  )
+```
+
+
+The way this is handled is R will create a new job environment for each simulation. It will push as many jobs at any time as there are allowed by ncores. This is slightly slower and has more overhead than other parallel methods, but it comes with several key advantages. Most importantly, each job is isolated so other tasks, such as monitoring can happen at the same time, and crashed jobs do no affect other jobs. 
+
+In addition to isolating each job, rTREES will watch for hung jobs and jobs that have had too many 'softerrors' in the simulation. Hung jobs are determined by calibrating the expected length of time any one simulation should take before doing the actual run and multiplying that by the timeout_scalar. A higher timeout_scalar the more flexibility you allow at the risk of very long jobs that might not finish anyways. The 'softerrors' are errors that occur within TREES. These are typically related to solvers and are usually benign artifacts of early startup or big state changes. However, if many of these all occur at once, it can suggest there is an issue and that the output is unreliable. As a compromise between setting a cutoff for the number of issues tolerated and just ignoring them, we developed the softerror tracker. The way this works is TREES will track the number of softerrors that occur, but this number has a decay rate so periodic softerrors over long simulations will still be able to run smoothly. The softerror_max sets how many can accumulate, before decaying, and trigger the end of the simulation.
+If you are doing debugging you can directly see if this occurred. Otherwise you will just see simulations that are cut off or filled with NAs after a point. 
+```{r run_pll}
+demo_parallel_run<-rTREES_parallel_run(
+  base_parameters=demo_inputs_from_file$parameters,
+  drivers=mult_driver_set,
+  root_shoot_soil=demo_inputs_from_file$root_shoot_soil,
+  new_parameters=multi_p_set ,
+  vars_to_return=c("LAI","PlantN"),
+  ncores=rTREES::number_of_cores()-2,
+  interval_to_return=12,
+  aggregate_time_steps=FALSE,#average around interval 
+  verbosity=FALSE,
+  softerror_max=5,
+  timeout_scalar=5,
+  debug=FALSE
+)
+```
+
+### Cleaning and visualizing
+
+```{r view_output}
+lobstr::tree(demo_parallel_run)
+```
+
+It is often much easier to do analysis when the data is in a long format. Each output type has a function to make this simpler.
+```{r clean_output}
+#We didn't have any hyd or leaf parameters returned, but they work the same as for the sim.
+# demo_pll_hyd<-long_df_hyd_parallel(par_res = demo_parallel_run)
+# demo_pll_leaf<-long_df_leaf_parallel(par_res = demo_parallel_run)
+demo_pll_sim<-long_df_sim_parallel(par_res = demo_parallel_run)
+
+```
+
+```{r plot_output}
+ggplot(demo_pll_sim)+
+  geom_point(aes(x=UTC_date_time,y = sim_val,color=parameter))+
+  spkd_theme()+
+  facet_wrap(~interaction(driver,sim_name))
+```
+
+
+
+### Debugging
+A hidden advantage of the parallel back end is the ability to dig directly into the R environment each job ran in. This means you look into each issue as if it were done with a single run. It also means that you can easily retry failed jobs if debug was set to TRUE. This does come at the cost of heavy resource usage. Most personal computers will quickly run out of ram with only a few hundred simulations run with debug on. 
+```{r debug, eval=FALSE}
+demo_parallel_debug<-rTREES_parallel_run(
+  base_parameters=demo_parameters,
+  drivers=mult_driver_set,
+  root_shoot_soil=demo_RSS,
+  new_parameters=multi_p_set ,
+  vars_to_return=c("LAI","PlantN"),
+  ncores=rTREES::number_of_cores()-2,
+  interval_to_return=12,
+  aggregate_time_steps=FALSE,#average around time step? 
+  verbosity=TRUE,
+  softerror_max=5,
+  timeout_scalar=5,
+  debug=TRUE
+)
+```
+
+
